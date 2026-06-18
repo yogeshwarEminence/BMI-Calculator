@@ -24,8 +24,11 @@ pipeline {
         stage('Manual Approval') {
             steps {
                 input(
-                    message: 'Do you want to deploy to EC2?',
-                    ok: 'Deploy'
+                    message: 'Deploy on which environment?',
+                    parameters: [
+                        choice(name: 'ENVIRONMENT', choices: ['DEV', 'PROD'],
+                         description: 'Select the environment to deploy to')
+                    ]
                 )
             }
         }
