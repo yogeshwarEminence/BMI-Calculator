@@ -14,7 +14,7 @@ pipeline {
             steps {
                 git branch: 'main', 
                     credentialsId: 'github-cred', 
-                    url: 'https://github.com/your-user/your-repo.git'
+                    url: 'https://github.com/yogeshwarEminence/BMI-Calculator.git'
             }
         }
         
