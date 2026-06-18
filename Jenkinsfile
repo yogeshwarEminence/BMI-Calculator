@@ -1,4 +1,5 @@
 pipeline {
+
     agent any
 
     environment {
@@ -15,42 +16,34 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Build React App') {
             steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Build') {
-            steps {
-                sh 'npm run build'
+                sh '''
+                docker run --rm \
+                  -v $PWD:/app \
+                  -w /app \
+                  node:20 \
+                  bash -c "npm install && npm run build"
+                '''
             }
         }
 
         stage('Deploy') {
             steps {
-                sh """
-                scp -o StrictHostKeyChecking=no -r dist/* ${APP_USER}@${APP_SERVER}:${DEPLOY_PATH}/
-                """
+                sh '''
+                scp -r dist/* ${APP_USER}@${APP_SERVER}:${DEPLOY_PATH}/
+                '''
             }
         }
 
-        stage('Restart Nginx') {
+        stage('Reload Nginx') {
             steps {
-                sh """
-                ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} 'sudo systemctl restart nginx'
-                """
+                sh '''
+                ssh ${APP_USER}@${APP_SERVER} "sudo systemctl reload nginx"
+                '''
             }
         }
+
     }
 
-    post {
-        success {
-            echo 'Deployment Successful'
-        }
-
-        failure {
-            echo 'Deployment Failed'
-        }
-    }
 }
