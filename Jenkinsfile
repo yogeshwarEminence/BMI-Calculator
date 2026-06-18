@@ -2,8 +2,9 @@ pipeline {
     agent any
 
     environment {
-        APP_SERVER = "ubuntu@13.233.88.91"
-        DEPLOY_PATH = "/var/www/myapp"
+        APP_SERVER = "13.233.88.91"
+        APP_USER = "ubuntu"
+        DEPLOY_PATH = "/var/www/html"
     }
 
     stages {
@@ -14,18 +15,42 @@ pipeline {
             }
         }
 
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'npm run build'
+            }
+        }
+
         stage('Deploy') {
             steps {
                 sh """
-                echo "Deploying application..."
-
-                scp -o StrictHostKeyChecking=no -r * ${APP_SERVER}:${DEPLOY_PATH}/
-
-                ssh -o StrictHostKeyChecking=no ${APP_SERVER} '
-                    sudo systemctl restart nginx
-                '
+                scp -o StrictHostKeyChecking=no -r dist/* ${APP_USER}@${APP_SERVER}:${DEPLOY_PATH}/
                 """
             }
+        }
+
+        stage('Restart Nginx') {
+            steps {
+                sh """
+                ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} 'sudo systemctl restart nginx'
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Deployment Successful'
+        }
+
+        failure {
+            echo 'Deployment Failed'
         }
     }
 }
