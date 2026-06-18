@@ -1,19 +1,27 @@
-FROM node:22-alpine AS builder
+# Use official Node LTS
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# Install deps first for better layer caching
 COPY package*.json ./
+RUN npm ci --only=production
 
-RUN npm install
-
+# Copy source and build
 COPY . .
+RUN npm run build   # skip this line if you don't have a build step
 
-RUN npm run build
+# --- Production stage ---
+FROM node:20-alpine
 
-FROM nginx:alpine
+WORKDIR /app
+ENV NODE_ENV=production
 
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy only what we need from build stage
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package*.json ./
+# COPY --from=build /app/dist ./dist        # change to your build output folder
+# If no build step, use: COPY --from=build /app ./
 
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 3000
+CMD ["npm", "start"]   # or: ["node", "dist/index.js"]
