@@ -1,86 +1,45 @@
 pipeline {
-
     agent any
 
     environment {
-
-        IMAGE_NAME = "bmi-app"
-        CONTAINER_NAME = "bmi-container"
         APP_SERVER = "ubuntu@13.207.151.21"
-        SSH_CREDENTIAL = "app-server"
-
+        APP_PATH = "/var/www/html"
     }
 
     stages {
 
         stage('Checkout') {
-
             steps {
-
                 git branch: 'main',
-                url: 'https://github.com/yogeshwarEminence/BMI-Calculator.git'
-
+                    url: 'https://github.com/yogeshwarEminence/BMI-Calculator.git'
             }
-
         }
 
-        stage('Build Docker Image') {
-
+        stage('Build') {
             steps {
-
                 sh '''
-                docker build -t $IMAGE_NAME .
+                docker run --rm \
+                    -v $WORKSPACE:/app \
+                    -w /app \
+                    node:22-alpine \
+                    sh -c "
+                        npm install &&
+                        npm run build
+                    "
                 '''
-
             }
-
-        }
-
-        stage('Save Docker Image') {
-
-            steps {
-
-                sh '''
-                docker save -o bmi-app.tar $IMAGE_NAME
-                '''
-
-            }
-
-        }
-
-        stage('Copy Image To Server') {
-
-            steps {
-
-                sshagent(credentials: ["${SSH_CREDENTIAL}"]) {
-
-                    sh '''
-                    scp -o StrictHostKeyChecking=no bmi-app.tar $APP_SERVER:/home/ubuntu/
-                    '''
-
-                }
-
-            }
-
         }
 
         stage('Deploy') {
-    steps {
-        sshagent(credentials: ["${SSH_CREDENTIAL}"]) {
-            sh """
-ssh -o StrictHostKeyChecking=no ${APP_SERVER} '
-docker stop ${CONTAINER_NAME} || true
-docker rm ${CONTAINER_NAME} || true
-docker rmi ${IMAGE_NAME} || true
-docker load -i /home/ubuntu/bmi-app.tar
-docker run -d --name ${CONTAINER_NAME} -p 3000:3000 --restart always ${IMAGE_NAME}
-rm -f /home/ubuntu/bmi-app.tar
-'
-"""
+            steps {
+                sh '''
+                scp -o StrictHostKeyChecking=no -r dist/* $APP_SERVER:$APP_PATH/
+
+                ssh -o StrictHostKeyChecking=no $APP_SERVER '
+                    sudo systemctl reload nginx
+                '
+                '''
+            }
         }
     }
-}
-
-    }
-
 }
