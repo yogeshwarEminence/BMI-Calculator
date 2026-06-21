@@ -65,38 +65,21 @@ pipeline {
         }
 
         stage('Deploy') {
-
-            steps {
-
-                sshagent(credentials: ["${SSH_CREDENTIAL}"]) {
-
-                    sh '''
-                    ssh -o StrictHostKeyChecking=no $APP_SERVER << EOF
-
-                    docker stop $CONTAINER_NAME || true
-
-                    docker rm $CONTAINER_NAME || true
-
-                    docker rmi $IMAGE_NAME || true
-
-                    docker load -i bmi-app.tar
-
-                    docker run -d \
-                    --name $CONTAINER_NAME \
-                    -p 3000:3000 \
-                    --restart always \
-                    $IMAGE_NAME
-
-                    rm bmi-app.tar
-
-                    EOF
-                    '''
-
-                }
-
-            }
-
+    steps {
+        sshagent(credentials: ["${SSH_CREDENTIAL}"]) {
+            sh """
+ssh -o StrictHostKeyChecking=no ${APP_SERVER} '
+docker stop ${CONTAINER_NAME} || true
+docker rm ${CONTAINER_NAME} || true
+docker rmi ${IMAGE_NAME} || true
+docker load -i /home/ubuntu/bmi-app.tar
+docker run -d --name ${CONTAINER_NAME} -p 3000:3000 --restart always ${IMAGE_NAME}
+rm -f /home/ubuntu/bmi-app.tar
+'
+"""
         }
+    }
+}
 
     }
 
