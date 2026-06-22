@@ -1,58 +1,100 @@
 pipeline {
+
     agent any
+
+    parameters {
+        choice(
+            name: 'ENV',
+            choices: ['DEV', 'PROD'],
+            description: 'Select Deployment Environment'
+        )
+    }
 
     environment {
         APP_SERVER = 'ubuntu@15.206.169.136'
-        APP_PATH = '/var/www/html'
     }
 
     stages {
-        stage('Checkout') {
+
+        stage('Checkout Source Code') {
             steps {
-                git branch: 'main',
+                script {
+
+                    if (params.ENV == "DEV") {
+                        env.GIT_BRANCH = "develop"
+                        env.DEPLOY_PATH = "/var/www/dev"
+                    } else {
+                        env.GIT_BRANCH = "main"
+                        env.DEPLOY_PATH = "/var/www/prod"
+                    }
+
+                }
+
+                git branch: env.GIT_BRANCH,
                     url: 'https://github.com/yogeshwarEminence/BMI-Calculator.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
+
                 sh '''
                 docker build -t bmi-app .
                 '''
+
             }
         }
 
         stage('Extract Build Files') {
             steps {
+
                 sh '''
                 docker rm -f bmi-temp || true
+
                 docker create --name bmi-temp bmi-app
+
                 rm -rf /tmp/bmi-dist
+
                 mkdir -p /tmp/bmi-dist
+
                 docker cp bmi-temp:/usr/share/nginx/html/. /tmp/bmi-dist/
+
                 docker rm -f bmi-temp
                 '''
+
             }
         }
 
-        stage('Deploy to App Server') {
+        stage('Deploy') {
             steps {
-                sh '''
-                scp -o StrictHostKeyChecking=no -r /tmp/bmi-dist/* ubuntu@15.206.169.136:/var/www/html/
-                ssh -o StrictHostKeyChecking=no ubuntu@15.206.169.136 "
+
+                sh """
+                scp -o StrictHostKeyChecking=no -r /tmp/bmi-dist/* ${APP_SERVER}:${DEPLOY_PATH}/
+
+                ssh -o StrictHostKeyChecking=no ${APP_SERVER} "
                     sudo systemctl reload nginx
                 "
-                '''
+                """
+
             }
         }
+
     }
 
     post {
+
         success {
-            echo 'Application deployed successfully.'
+
+            echo "Deployment Successful"
+
         }
+
         failure {
-            echo 'Deployment failed.'
+
+            echo "Deployment Failed"
+
         }
+
     }
+
 }
