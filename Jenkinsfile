@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        APP_SERVER = "ubuntu@13.207.151.21"
+        APP_SERVER = "ubuntu@15.206.169.136"
         APP_PATH = "/var/www/html"
     }
 
@@ -15,31 +15,54 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build Docker Image') {
             steps {
                 sh '''
-                docker run --rm \
-                    -v $WORKSPACE:/app \
-                    -w /app \
-                    node:22-alpine \
-                    sh -c "
-                        npm install &&
-                        npm run build
-                    "
+                docker build -t bmi-app .
                 '''
             }
         }
 
-        stage('Deploy') {
+        stage('Extract Build Files') {
             steps {
                 sh '''
-                scp -o StrictHostKeyChecking=no -r dist/* $APP_SERVER:$APP_PATH/
+                docker rm -f bmi-temp || true
 
-                ssh -o StrictHostKeyChecking=no $APP_SERVER '
-                    sudo systemctl reload nginx
-                '
+                docker create --name bmi-temp bmi-app
+
+                rm -rf dist
+
+                docker cp bmi-temp:/app/dist ./dist
+
+                docker rm bmi-temp
                 '''
             }
+        }
+
+        stage('Deploy to App Server') {
+            steps {
+                sh '''
+                ssh -o StrictHostKeyChecking=no $APP_SERVER "rm -rf /tmp/dist"
+
+                scp -o StrictHostKeyChecking=no -r dist $APP_SERVER:/tmp/
+
+                ssh -o StrictHostKeyChecking=no $APP_SERVER "
+                    sudo rm -rf $APP_PATH/*
+                    sudo cp -r /tmp/dist/* $APP_PATH/
+                    sudo systemctl reload nginx
+                "
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Application deployed successfully.'
+        }
+
+        failure {
+            echo 'Deployment failed.'
         }
     }
 }
