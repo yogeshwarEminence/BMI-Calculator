@@ -23,7 +23,8 @@ pipeline {
             }
         }
 
-        stage('Extract Build Files') {
+
+       stage('Extract Build Files') {
     steps {
         sh '''
         docker rm -f bmi-temp || true
@@ -32,19 +33,19 @@ pipeline {
         rm -rf /tmp/bmi-dist
         mkdir -p /tmp/bmi-dist
 
-        docker cp bmi-temp:/app/dist/. /tmp/bmi-dist/
+        docker cp bmi-temp:/usr/share/nginx/html/. /tmp/bmi-dist/
 
         docker rm -f bmi-temp
         '''
     }
 }
 
-        stage('Deploy to App Server') {
+stage('Deploy to App Server') {
     steps {
         sh '''
-        scp -o StrictHostKeyChecking=no -r /tmp/bmi-dist/* ubuntu@13.207.151.21:/var/www/html/
+        scp -o StrictHostKeyChecking=no -r /tmp/bmi-dist/* ubuntu@<APP_SERVER_IP>:/var/www/html/
 
-        ssh -o StrictHostKeyChecking=no ubuntu@13.207.151.21 "
+        ssh -o StrictHostKeyChecking=no ubuntu@<APP_SERVER_IP> "
             sudo systemctl reload nginx
         "
         '''
