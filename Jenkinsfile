@@ -28,6 +28,7 @@ pipeline {
     steps {
         sh '''
         docker rm -f bmi-temp || true
+
         docker create --name bmi-temp bmi-app
 
         rm -rf /tmp/bmi-dist
