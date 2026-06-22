@@ -24,36 +24,32 @@ pipeline {
         }
 
         stage('Extract Build Files') {
-            steps {
-                sh '''
-                docker rm -f bmi-temp || true
+    steps {
+        sh '''
+        docker rm -f bmi-temp || true
+        docker create --name bmi-temp bmi-app
 
-                docker create --name bmi-temp bmi-app
+        rm -rf /tmp/bmi-dist
+        mkdir -p /tmp/bmi-dist
 
-                rm -rf dist
+        docker cp bmi-temp:/app/dist/. /tmp/bmi-dist/
 
-                docker cp bmi-temp:/app/dist ./dist
-
-                docker rm bmi-temp
-                '''
-            }
-        }
+        docker rm -f bmi-temp
+        '''
+    }
+}
 
         stage('Deploy to App Server') {
-            steps {
-                sh '''
-                ssh -o StrictHostKeyChecking=no $APP_SERVER "rm -rf /tmp/dist"
+    steps {
+        sh '''
+        scp -o StrictHostKeyChecking=no -r /tmp/bmi-dist/* ubuntu@13.207.151.21:/var/www/html/
 
-                scp -o StrictHostKeyChecking=no -r dist $APP_SERVER:/tmp/
-
-                ssh -o StrictHostKeyChecking=no $APP_SERVER "
-                    sudo rm -rf $APP_PATH/*
-                    sudo cp -r /tmp/dist/* $APP_PATH/
-                    sudo systemctl reload nginx
-                "
-                '''
-            }
-        }
+        ssh -o StrictHostKeyChecking=no ubuntu@13.207.151.21 "
+            sudo systemctl reload nginx
+        "
+        '''
+    }
+}
     }
 
     post {
