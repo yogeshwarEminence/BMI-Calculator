@@ -46,7 +46,7 @@ stage('Deploy to App Server') {
         sh '''
         scp -o StrictHostKeyChecking=no -r /tmp/bmi-dist/* ubuntu@<APP_SERVER_IP>:/var/www/html/
 
-        ssh -o StrictHostKeyChecking=no ubuntu@<APP_SERVER_IP> "
+        ssh -o StrictHostKeyChecking=no ubuntu@15.206.169.136 "
             sudo systemctl reload nginx
         "
         '''
