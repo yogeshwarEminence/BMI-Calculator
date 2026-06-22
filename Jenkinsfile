@@ -2,12 +2,11 @@ pipeline {
     agent any
 
     environment {
-        APP_SERVER = "ubuntu@15.206.169.136"
-        APP_PATH = "/var/www/html"
+        APP_SERVER = 'ubuntu@15.206.169.136'
+        APP_PATH = '/var/www/html'
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -23,42 +22,35 @@ pipeline {
             }
         }
 
+        stage('Extract Build Files') {
+            steps {
+                sh '''
+                docker rm -f bmi-temp || true
+                docker create --name bmi-temp bmi-app
+                rm -rf /tmp/bmi-dist
+                mkdir -p /tmp/bmi-dist
+                docker cp bmi-temp:/usr/share/nginx/html/. /tmp/bmi-dist/
+                docker rm -f bmi-temp
+                '''
+            }
+        }
 
-       stage('Extract Build Files') {
-    steps {
-        sh '''
-        docker rm -f bmi-temp || true
-
-        docker create --name bmi-temp bmi-app
-
-        rm -rf /tmp/bmi-dist
-        mkdir -p /tmp/bmi-dist
-
-        docker cp bmi-temp:/usr/share/nginx/html/. /tmp/bmi-dist/
-
-        docker rm -f bmi-temp
-        '''
-    }
-}
-
-stage('Deploy to App Server') {
-    steps {
-        sh '''
-        scp -o StrictHostKeyChecking=no -r /tmp/bmi-dist/* ubuntu@15.206.169.136:/var/www/html/
-
-        ssh -o StrictHostKeyChecking=no ubuntu@15.206.169.136 "
-            sudo systemctl reload nginx
-        "
-        '''
-    }
-}
+        stage('Deploy to App Server') {
+            steps {
+                sh '''
+                scp -o StrictHostKeyChecking=no -r /tmp/bmi-dist/* ubuntu@15.206.169.136:/var/www/html/
+                ssh -o StrictHostKeyChecking=no ubuntu@15.206.169.136 "
+                    sudo systemctl reload nginx
+                "
+                '''
+            }
+        }
     }
 
     post {
         success {
             echo 'Application deployed successfully.'
         }
-
         failure {
             echo 'Deployment failed.'
         }
