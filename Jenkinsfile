@@ -2,6 +2,10 @@ pipeline {
 
     agent any
 
+    options {
+        skipDefaultCheckout(true)
+    }
+
     parameters {
         choice(
             name: 'ENV',
@@ -11,7 +15,7 @@ pipeline {
     }
 
     environment {
-        APP_SERVER = 'ubuntu@15.206.169.136'
+        APP_SERVER = 'ubuntu@43.205.243.8'
     }
 
     stages {
@@ -21,7 +25,7 @@ pipeline {
                 script {
 
                     if (params.ENV == "DEV") {
-                        env.GIT_BRANCH = "develop"
+                        env.GIT_BRANCH = "dev"
                         env.DEPLOY_PATH = "/var/www/dev"
                     } else {
                         env.GIT_BRANCH = "main"
