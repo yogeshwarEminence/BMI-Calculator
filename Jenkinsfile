@@ -15,7 +15,7 @@ pipeline {
     }
 
     environment {
-        APP_SERVER = 'ubuntu@43.205.243.8'
+        APP_SERVER = 'ubuntu@13.127.138.54'
     }
 
     stages {
