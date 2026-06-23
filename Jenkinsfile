@@ -2,10 +2,6 @@ pipeline {
 
     agent any
 
-    options {
-        skipDefaultCheckout(true)
-    }
-
     parameters {
         choice(
             name: 'ENV',
@@ -15,71 +11,71 @@ pipeline {
     }
 
     environment {
-        APP_SERVER = 'ubuntu@13.127.138.54'
+        GIT_URL = 'https://github.com/yogeshwarEminence/BMI-Calculator.git'
+        APP_SERVER = '13.127.138.54'
+        DEPLOY_PATH = '/var/www/html'
+        IMAGE_NAME = 'bmi-app'
     }
 
     stages {
 
-        stage('Checkout Source Code') {
+        stage('Select Branch') {
             steps {
                 script {
 
                     if (params.ENV == "DEV") {
                         env.GIT_BRANCH = "dev"
-                        env.DEPLOY_PATH = "/var/www/dev"
                     } else {
                         env.GIT_BRANCH = "main"
-                        env.DEPLOY_PATH = "/var/www/prod"
                     }
 
+                    echo "===================================="
+                    echo "Environment : ${params.ENV}"
+                    echo "Branch      : ${env.GIT_BRANCH}"
+                    echo "===================================="
                 }
+            }
+        }
+
+        stage('Checkout Source Code') {
+            steps {
+                deleteDir()
 
                 git branch: env.GIT_BRANCH,
-                    url: 'https://github.com/yogeshwarEminence/BMI-Calculator.git'
+                    url: env.GIT_URL
             }
         }
 
         stage('Build Docker Image') {
             steps {
-
-                sh '''
-                docker build -t bmi-app .
-                '''
-
+                sh """
+                    docker build -t ${IMAGE_NAME} .
+                """
             }
         }
 
         stage('Extract Build Files') {
             steps {
+                sh """
+                    docker rm -f bmi-temp || true
 
-                sh '''
-                docker rm -f bmi-temp || true
+                    docker create --name bmi-temp ${IMAGE_NAME}
 
-                docker create --name bmi-temp bmi-app
+                    rm -rf /tmp/bmi-dist
+                    mkdir -p /tmp/bmi-dist
 
-                rm -rf /tmp/bmi-dist
+                    docker cp bmi-temp:/usr/share/nginx/html/. /tmp/bmi-dist/
 
-                mkdir -p /tmp/bmi-dist
-
-                docker cp bmi-temp:/usr/share/nginx/html/. /tmp/bmi-dist/
-
-                docker rm -f bmi-temp
-                '''
-
+                    docker rm -f bmi-temp
+                """
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to Application Server') {
             steps {
-
                 sh """
-                scp -o StrictHostKeyChecking=no -r /tmp/bmi-dist/* ${APP_SERVER}:${DEPLOY_PATH}/
-
-                ssh -o StrictHostKeyChecking=no ${APP_SERVER} "
-                    sudo systemctl reload nginx
-                "
+                    scp -o StrictHostKeyChecking=no -r /tmp/bmi-dist/* ubuntu@${APP_SERVER}:${DEPLOY_PATH}/
                 """
-
             }
         }
 
@@ -88,17 +84,22 @@ pipeline {
     post {
 
         success {
-
+            echo "===================================="
             echo "Deployment Successful"
-
+            echo "Environment : ${params.ENV}"
+            echo "Branch      : ${env.GIT_BRANCH}"
+            echo "===================================="
         }
 
         failure {
-
+            echo "===================================="
             echo "Deployment Failed"
-
+            echo "===================================="
         }
 
+        always {
+            sh 'docker rm -f bmi-temp || true'
+        }
     }
 
 }
